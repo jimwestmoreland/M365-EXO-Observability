@@ -50,6 +50,21 @@ Start with the folder-level topics below, then open the script inside that topic
 - Use reports when you want trend data and scheduled summaries.
 - Use exchange mail flow when you need message trace troubleshooting or synthetic probe checks.
 
+## Script Map
+
+| Script | Use it when you need to answer... | Datadog signal |
+| --- | --- | --- |
+| `service-health/service-health.ps1` | Is Microsoft 365 currently degraded or having an advisory? | Service health summary |
+| `entra-activity/sign-in-activity.ps1` | Are sign-ins failing, risky, or trending in a bad direction? | Sign-in activity summary |
+| `entra-activity/directory-audit-activity.ps1` | What changed in Entra and who changed it? | Directory audit summary |
+| `reports/m365-usage-reports.ps1` | What are the current Microsoft 365 usage trends? | Usage report summary |
+| `reports/exchange-reports.ps1` | What are the Exchange reporting trends? | Exchange report summary |
+| `exchange-mailflow/mailflow-datadog-collector.ps1` | Are message traces failing, pending, or deferred? | Raw mail-flow trace logs |
+| `exchange-mailflow/probe-marker-template.ps1` | Did we intentionally send a synthetic probe? | Probe marker event |
+| `exchange-mailflow/pilot-trace-rollup.ps1` | How much mail-flow activity is there at a glance? | Trace rollup summary |
+| `exchange-mailflow/trace-failure-sampler.ps1` | What do the important failure traces look like? | Failure sample records |
+| `exchange-mailflow/probe-latency-check.ps1` | Did the synthetic probe arrive, and how long did it take? | Probe latency event |
+
 ## Folder Layout
 
 ### service-health
