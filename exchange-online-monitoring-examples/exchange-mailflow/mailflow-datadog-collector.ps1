@@ -45,6 +45,8 @@ param(
 
 Import-Module ExchangeOnlineManagement
 
+. "$PSScriptRoot\..\send-datadog-log.ps1"
+
 Connect-ExchangeOnline `
     -AppId $AppId `
     -CertificateThumbprint $CertificateThumbprint `
@@ -111,17 +113,6 @@ $events = foreach ($trace in $traces) {
     }
 }
 
-if ($events.Count -gt 0) {
-    $body = $events | ConvertTo-Json -Depth 10
-
-    Invoke-RestMethod `
-        -Method Post `
-        -Uri $DatadogLogEndpoint `
-        -Headers @{
-            "DD-API-KEY" = $DatadogApiKey
-            "Content-Type" = "application/json"
-        } `
-        -Body $body
-}
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($events)
 
 Disconnect-ExchangeOnline -Confirm:$false

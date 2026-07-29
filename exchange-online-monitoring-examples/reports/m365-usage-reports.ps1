@@ -15,11 +15,14 @@ param(
     [string]$TenantId = "<entra-tenant-id>",
     [string]$ClientId = "<entra-app-client-id>",
     [string]$CertificateThumbprint = "<cert-thumbprint>",
-    [string]$OutputPath = ".\m365-usage-report.json"
+    [string]$DatadogApiKey = "<datadog-api-key>",
+    [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs"
 )
 
 # Required app permissions typically include Reports.Read.All.
 Connect-MgGraph -TenantId $TenantId -ClientId $ClientId -CertificateThumbprint $CertificateThumbprint
+
+. "$PSScriptRoot\..\send-datadog-log.ps1"
 
 # Example usage signals. Choose the report that matches the conversation with the customer.
 $reportData = @{}
@@ -38,14 +41,16 @@ catch {
     }
 }
 
-[pscustomobject]@{
+$record = [pscustomobject]@{
     generated_utc = (Get-Date).ToUniversalTime().ToString('o')
     record_type = "m365_usage"
     report = $reportData
-} | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputPath
+}
+
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($record)
 
 [pscustomobject]@{
-    output_path = $OutputPath
+    datadog = $DatadogLogEndpoint
 } | Format-List
 
 Disconnect-MgGraph

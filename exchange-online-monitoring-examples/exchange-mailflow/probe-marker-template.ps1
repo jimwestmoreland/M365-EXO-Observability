@@ -14,25 +14,31 @@ param(
     [string]$ProbeSender = "probe-sender@contoso.com",
     [string]$ProbeRecipient = "probe-recipient@contoso.com",
     [string]$SubjectPrefix = "XO-HealthCheck",
-    [string]$MarkerPath = ".\exchange-probe-marker.json"
+    [string]$DatadogApiKey = "<datadog-api-key>",
+    [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs"
 )
+
+. "$PSScriptRoot\..\send-datadog-log.ps1"
 
 $now = Get-Date
 $correlationId = [guid]::NewGuid().ToString()
 $subjectToken = "$SubjectPrefix-$correlationId"
 
-[pscustomobject]@{
+$record = [pscustomobject]@{
+    record_type = "probe_marker"
     correlation_id = $correlationId
     probe_sender = $ProbeSender
     probe_recipient = $ProbeRecipient
     subject_prefix = $SubjectPrefix
     subject_token = $subjectToken
     send_utc = $now.ToUniversalTime().ToString('o')
-} | ConvertTo-Json -Depth 4 | Set-Content -Path $MarkerPath
+}
+
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($record)
 
 [pscustomobject]@{
     correlation_id = $correlationId
     subject_token = $subjectToken
     send_utc = $now.ToUniversalTime().ToString('o')
-    marker_path = $MarkerPath
+    datadog = $DatadogLogEndpoint
 } | Format-List

@@ -17,10 +17,13 @@ param(
     [string]$CertificateThumbprint = "<cert-thumbprint>",
     [int]$LookbackMinutes = 15,
     [int]$MaxFailures = 100,
-    [string]$OutputPath = ".\exchange-trace-failures.json"
+    [string]$DatadogApiKey = "<datadog-api-key>",
+    [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs"
 )
 
 Import-Module ExchangeOnlineManagement
+
+. "$PSScriptRoot\..\send-datadog-log.ps1"
 
 Connect-ExchangeOnline `
     -AppId $AppId `
@@ -71,6 +74,7 @@ $enriched = foreach ($item in $sample) {
     $latestDetail = $detailRows | Sort-Object Date -Descending | Select-Object -First 1
 
     [pscustomobject]@{
+        record_type = "exchange_mailflow_failure"
         organization = $item.organization
         timestamp_utc = $item.timestamp_utc
         sender = $item.sender
@@ -87,7 +91,7 @@ $enriched = foreach ($item in $sample) {
     }
 }
 
-$enriched | ConvertTo-Json -Depth 6 | Set-Content -Path $OutputPath
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($enriched)
 
 # Show only a lightweight summary in the console for quick review.
 [pscustomobject]@{
@@ -96,6 +100,7 @@ $enriched | ConvertTo-Json -Depth 6 | Set-Content -Path $OutputPath
     window_end_utc = $end.ToUniversalTime().ToString('o')
     sampled_records = @($sample).Count
     enriched_records = @($enriched).Count
+    datadog = $DatadogLogEndpoint
 } | Format-List
 
 Disconnect-ExchangeOnline -Confirm:$false

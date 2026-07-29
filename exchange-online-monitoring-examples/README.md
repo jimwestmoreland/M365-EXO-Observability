@@ -1,13 +1,18 @@
 # Exchange Monitoring Examples
 
-This folder is a set of example scripts for a large Microsoft 365 tenant. The scripts are grouped by topic so the customer can understand each data source separately and adopt only the parts they actually need.
+This folder contains example scripts for a large Microsoft 365 tenant. Every script is intended to publish its useful output to Datadog so the customer can visualize, query, and alert on the signals in one place.
 
-The goal is not to create one huge monitoring job. The goal is to split the work into smaller, easier-to-review pieces:
+The scripts are grouped by topic so the customer can understand each data source separately and adopt only the parts they actually need.
 
-- Service health for platform status.
-- Entra activity for identity and directory changes.
-- Reports for daily usage-style summaries.
-- Exchange mail flow for trace data, troubleshooting, and approved synthetic probes.
+## Datadog At A Glance
+
+Every script in this folder sends its useful output to Datadog.
+
+- `exchange-mailflow/mailflow-datadog-collector.ps1` sends Exchange message trace logs to Datadog.
+- `service-health/service-health.ps1` sends Microsoft 365 service health summaries to Datadog.
+- `entra-activity/sign-in-activity.ps1` and `entra-activity/directory-audit-activity.ps1` send Entra activity summaries to Datadog.
+- `reports/m365-usage-reports.ps1` and `reports/exchange-reports.ps1` send report summaries to Datadog.
+- `exchange-mailflow/probe-marker-template.ps1`, `pilot-trace-rollup.ps1`, `trace-failure-sampler.ps1`, and `probe-latency-check.ps1` also publish events to Datadog so the customer can validate and troubleshoot mail flow without keeping local files.
 
 ## How To Read This Folder
 
@@ -26,7 +31,12 @@ This folder holds the script for Microsoft 365 service health status. The data i
 
 File:
 
-- service-health.ps1 - connects to Microsoft Graph and pulls current service health issues and advisories.
+- `service-health.ps1` - connects to Microsoft Graph and pulls current service health issues and advisories.
+
+What it sends to Datadog:
+
+- A service health summary with issue count and issue details.
+- A record that can back a dashboard tile or an alert.
 
 When to use it:
 
@@ -36,15 +46,9 @@ When to use it:
 
 How to use it:
 
-- Fill in the tenant id, app client id, and certificate thumbprint.
+- Fill in the tenant id, app client id, Datadog API key, and Datadog site if needed.
 - Run it on a short schedule, such as every 15 to 60 minutes.
-- Use the output to drive a dashboard tile or a simple alert.
-- Keep the output small and do not treat this like a high-volume event source.
-
-What it writes:
-
-- A JSON file with the current issues and a small summary.
-- A short console summary with the number of issues found.
+- Use the output in Datadog for a dashboard tile or a simple alert.
 
 ### entra-activity
 
@@ -52,44 +56,30 @@ This folder contains Entra identity and audit examples. These are more useful fo
 
 Files:
 
-- sign-in-activity.ps1 - pulls recent sign-in activity and keeps only a limited set of fields.
-- directory-audit-activity.ps1 - pulls directory audit events such as user, group, role, and app changes.
+- `sign-in-activity.ps1` - pulls recent sign-in activity and keeps only a limited set of fields.
+- `directory-audit-activity.ps1` - pulls directory audit events such as user, group, role, and app changes.
 
-When to use sign-in-activity.ps1:
+What `sign-in-activity.ps1` sends to Datadog:
 
-- You need to investigate login failures or risky sign-ins.
-- You want to trend sign-in volume over a short window.
-- You want to look at app, user, IP, and failure information without exporting everything.
+- A compact sign-in activity record for the selected time window.
+- The sign-in details needed for investigation, dashboards, and alerts.
 
-How to use sign-in-activity.ps1:
+How to use it:
 
-- Set the tenant id, app client id, and certificate thumbprint.
+- Set the tenant id, app client id, Datadog API key, and Datadog site if needed.
 - Start with a short lookback window, such as 15 or 60 minutes.
 - Use a small max record limit first.
-- Filter or sample before you send anything into Datadog.
 
-What it writes:
+What `directory-audit-activity.ps1` sends to Datadog:
 
-- A JSON file with the sampled sign-in records.
-- A short console summary with the time window and record count.
+- A compact directory audit record for the selected time window.
+- The audit details needed for investigation, dashboards, and alerts.
 
-When to use directory-audit-activity.ps1:
+How to use it:
 
-- You want to see configuration changes in Entra.
-- You need evidence for a directory change investigation.
-- You want a compact audit trail for user, group, app, or role activity.
-
-How to use directory-audit-activity.ps1:
-
-- Set the tenant id, app client id, and certificate thumbprint.
+- Set the tenant id, app client id, Datadog API key, and Datadog site if needed.
 - Use a short polling window.
 - Keep the max record count low until you know the data rate.
-- Add deduplication if you run it frequently.
-
-What it writes:
-
-- A JSON file with a small set of audit records.
-- A short console summary with the time window and record count.
 
 ### reports
 
@@ -97,144 +87,73 @@ This folder contains report-style examples. These are intended for daily or week
 
 Files:
 
-- m365-usage-reports.ps1 - pulls Microsoft 365 usage report data.
-- exchange-reports.ps1 - pulls Exchange-oriented report data.
+- `m365-usage-reports.ps1` - pulls Microsoft 365 usage report data.
+- `exchange-reports.ps1` - pulls Exchange-oriented report data.
 
-When to use m365-usage-reports.ps1:
+What `m365-usage-reports.ps1` sends to Datadog:
 
-- You want usage trends across Microsoft 365 services.
-- You need a daily summary for consumption, adoption, or capacity review.
-- You want reports that are naturally batch-oriented.
+- A usage-report summary that can be graphed or queried in Datadog.
+- A preview of the report output for dashboarding or alerting.
 
-How to use m365-usage-reports.ps1:
+How to use it:
 
-- Set the tenant id, app client id, and certificate thumbprint.
+- Set the tenant id, app client id, Datadog API key, and Datadog site if needed.
 - Run it once per day or once per week.
 - Keep the output focused on the report slices the customer actually cares about.
-- Use it for trends, not for near-real-time monitoring.
 
-What it writes:
+What `exchange-reports.ps1` sends to Datadog:
 
-- A JSON file containing a preview of the usage report output.
-- A small console summary with the output file path.
+- An Exchange report summary that can be graphed or queried in Datadog.
+- A preview of the report result for dashboarding or alerting.
 
-When to use exchange-reports.ps1:
+How to use it:
 
-- You want Exchange-related reporting instead of live message trace collection.
-- You want a simple scheduled summary for mailbox usage or similar reporting needs.
-- You want to avoid turning report collection into a noisy trace pipeline.
-
-How to use exchange-reports.ps1:
-
-- Set the tenant id, app client id, and certificate thumbprint.
+- Set the tenant id, app client id, Datadog API key, and Datadog site if needed.
 - Run it on a daily cadence unless the customer asks for something different.
 - Keep the data set small and report-focused.
-- Treat this as a reporting workflow, not a diagnostic event stream.
-
-What it writes:
-
-- A JSON file with a preview of the report result.
-- A small console summary with the output file path.
 
 ### exchange-mailflow
 
-This folder contains the Exchange Online mail-flow examples. These are the most operationally sensitive scripts in the set because message trace can become large very quickly in a big tenant. The examples are separated so the customer can choose the least invasive option first.
+This folder contains the Exchange Online mail-flow examples. These are the most operationally sensitive scripts in the set because message trace can become large very quickly in a big tenant.
 
 Files:
 
-- mailflow-datadog-collector.ps1 - the broader Exchange Online trace collector that sends results to Datadog logs.
-- probe-marker-template.ps1 - creates a local marker file before a synthetic probe is sent.
-- pilot-trace-rollup.ps1 - pulls a narrow trace window and produces a simple rollup.
-- trace-failure-sampler.ps1 - captures only failures, deferred messages, and a small sample of trace details.
-- probe-latency-check.ps1 - checks whether the approved synthetic probe was seen and estimates latency using the marker file.
+- `mailflow-datadog-collector.ps1` - the broader Exchange Online trace collector that sends results to Datadog logs.
+- `probe-marker-template.ps1` - sends a probe marker event to Datadog.
+- `pilot-trace-rollup.ps1` - pulls a narrow trace window and publishes a summary event to Datadog.
+- `trace-failure-sampler.ps1` - captures only failures, deferred messages, and a small sample of trace details, then sends them to Datadog.
+- `probe-latency-check.ps1` - checks whether the approved synthetic probe was seen and publishes the result to Datadog.
 
-When to use mailflow-datadog-collector.ps1:
+What `mailflow-datadog-collector.ps1` sends to Datadog:
 
-- You want the full Datadog logging example.
-- You are comfortable with message trace data going into Datadog logs.
-- You need a broader troubleshooting collector after the customer has agreed to the design.
+- Raw Exchange Online message trace logs and detail records.
+- Failed, pending, and deferred trace enrichment for dashboards and alerts.
 
-How to use mailflow-datadog-collector.ps1:
+What `probe-marker-template.ps1` sends to Datadog:
 
-- Set the tenant, app id, certificate thumbprint, and Datadog API key.
-- Keep the lookback window small at first.
-- Review the volume in Datadog before broadening the window.
-- Prefer this after the customer has already accepted the lower-volume examples.
+- A probe marker event with the intended send time and correlation id.
+- The marker is a Datadog event, not a local file.
 
-What it writes:
+What `pilot-trace-rollup.ps1` sends to Datadog:
 
-- It sends JSON logs to Datadog.
-- It can enrich failed, pending, and deferred traces with trace details.
+- A trace rollup with counts by status and common sender and recipient domains.
+- A summary event that shows the scale of the trace window.
 
-When to use probe-marker-template.ps1:
+What `trace-failure-sampler.ps1` sends to Datadog:
 
-- You want to stage an approved synthetic probe before it is sent.
-- You need a simple local marker file to hold the intended send timestamp.
-- You want the probe process to be explicit and easy to review.
+- A limited sample of failed, deferred, or pending traces.
+- Enriched troubleshooting records that can back dashboards and alerts.
 
-How to use probe-marker-template.ps1:
+What `probe-latency-check.ps1` sends to Datadog:
 
-- Run it immediately before the approved sender sends the probe.
-- Keep the generated correlation id with the test message or runbook.
-- Point probe-latency-check.ps1 at the marker file it creates.
+- A probe-latency record showing whether the probe was found and what the latency was.
+- An event that can back a Datadog alert or dashboard tile.
 
-What it writes:
+How to use the mail-flow scripts:
 
-- A JSON marker file containing the intended send time and correlation id.
-
-When to use pilot-trace-rollup.ps1:
-
-- You want a first-pass summary before committing to the bigger collector.
-- You want to validate how much trace data a short polling window produces.
-- You want to understand the distribution of trace statuses without exporting every detail.
-
-How to use pilot-trace-rollup.ps1:
-
-- Set the Exchange Online auth values.
-- Start with a short lookback window, such as 5 to 15 minutes.
-- Review the rollup locally before sending any data elsewhere.
-- Use the checkpoint file so repeated runs do not reprocess the same data.
-
-What it writes:
-
-- A JSON rollup with trace counts by status and the most common sender and recipient domains.
-- A checkpoint file that records the end of the last successful run.
-
-When to use trace-failure-sampler.ps1:
-
-- You only want the interesting message trace rows, not the full stream.
-- You want a failure-focused troubleshooting sample.
-- You want to limit the amount of detail that is sent or stored for a large tenant.
-
-How to use trace-failure-sampler.ps1:
-
-- Set the Exchange Online auth values.
-- Choose a narrow lookback window.
-- Keep the maximum sample count small.
-- Use the detailed enrichment only when you really need it.
-
-What it writes:
-
-- A JSON file containing a limited sample of failed, deferred, or pending traces.
-- A short console summary with the sample size.
-
-When to use probe-latency-check.ps1:
-
-- You have already approved synthetic mail flow monitoring.
-- You want to check whether the expected probe appears in message trace.
-- You want a simple delivery latency estimate tied to the marker file.
-
-How to use probe-latency-check.ps1:
-
-- Run probe-marker-template.ps1 first.
-- Send the synthetic message with the expected sender, recipient, and subject prefix.
-- Run probe-latency-check.ps1 on a short interval after the probe is sent.
-- Alert if the probe does not appear or if the latency is too high.
-
-What it writes:
-
-- A JSON result file showing whether the probe was found and what the latency was.
-- A short console summary for the operator.
+- Keep time windows short at first.
+- Prefer the rollup or failure sampler before using the broader collector.
+- Use Datadog to store the results instead of local files.
 
 ## Scale Guidance
 
@@ -245,7 +164,6 @@ These scripts are designed for a large tenant, so the safest pattern is to start
 - Only enrich or sample detail rows when there is a failure or an approved probe.
 - Use daily or weekly cadence for report-style scripts.
 - Review Datadog ingestion volume before increasing lookback or frequency.
-- For mail flow, prefer the rollup or failure sampler before using the broader collector.
 
 ## Prerequisites
 
@@ -254,7 +172,7 @@ The examples assume the customer has approved a non-interactive authentication m
 - ExchangeOnlineManagement module for Exchange Online message trace examples.
 - Microsoft Graph access for the service health, Entra activity, and reporting examples.
 - App-only authentication or another approved non-interactive auth method.
-- Datadog API key only if you plan to forward data into Datadog from the mail-flow collector.
+- Datadog API key and Datadog site for every script in this folder.
 
 ## Notes
 

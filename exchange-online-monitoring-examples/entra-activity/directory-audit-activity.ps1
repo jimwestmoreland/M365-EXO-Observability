@@ -17,11 +17,14 @@ param(
     [string]$CertificateThumbprint = "<cert-thumbprint>",
     [int]$LookbackMinutes = 60,
     [int]$MaxRecords = 200,
-    [string]$OutputPath = ".\entra-directory-audit.json"
+    [string]$DatadogApiKey = "<datadog-api-key>",
+    [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs"
 )
 
 # Required app permissions typically include AuditLog.Read.All.
 Connect-MgGraph -TenantId $TenantId -ClientId $ClientId -CertificateThumbprint $CertificateThumbprint
+
+. "$PSScriptRoot\..\send-datadog-log.ps1"
 
 $end = Get-Date
 $start = $end.AddMinutes(-1 * $LookbackMinutes)
@@ -49,15 +52,22 @@ catch {
 }
 
 # Keep only a small slice for the first rollout.
-$audits = $audits | Select-Object -First $MaxRecords
+$audits = @($audits | Select-Object -First $MaxRecords)
 
-$audits | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputPath
-
-[pscustomobject]@{
+$record = [pscustomobject]@{
+    generated_utc = (Get-Date).ToUniversalTime().ToString('o')
+    record_type = "entra_directory_audit"
     window_start_utc = $start.ToUniversalTime().ToString('o')
     window_end_utc = $end.ToUniversalTime().ToString('o')
     record_count = @($audits).Count
-    output_path = $OutputPath
+    audits = $audits
+}
+
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($record)
+
+[pscustomobject]@{
+    record_count = @($audits).Count
+    datadog = $DatadogLogEndpoint
 } | Format-List
 
 Disconnect-MgGraph

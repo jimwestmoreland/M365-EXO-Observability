@@ -15,7 +15,8 @@ param(
     [string]$TenantId = "<entra-tenant-id>",
     [string]$ClientId = "<entra-app-client-id>",
     [string]$CertificateThumbprint = "<cert-thumbprint>",
-    [string]$OutputPath = ".\m365-service-health.json"
+    [string]$DatadogApiKey = "<datadog-api-key>",
+    [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs"
 )
 
 # This example uses Microsoft Graph service communications endpoints.
@@ -23,6 +24,8 @@ param(
 # customer-approved equivalent for service announcement access.
 
 Connect-MgGraph -TenantId $TenantId -ClientId $ClientId -CertificateThumbprint $CertificateThumbprint
+
+. "$PSScriptRoot\..\send-datadog-log.ps1"
 
 $issues = @()
 try {
@@ -48,17 +51,19 @@ catch {
     })
 }
 
-[pscustomobject]@{
+$record = [pscustomobject]@{
     generated_utc = (Get-Date).ToUniversalTime().ToString('o')
     record_type = "service_health"
     issue_count = @($issues).Count
     issues = $issues
-} | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputPath
+}
+
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($record)
 
 # Show a concise summary for operators.
 [pscustomobject]@{
     issue_count = @($issues).Count
-    output_path = $OutputPath
+    datadog = $DatadogLogEndpoint
 } | Format-List
 
 Disconnect-MgGraph

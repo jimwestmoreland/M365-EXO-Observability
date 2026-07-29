@@ -18,12 +18,15 @@ param(
     [string]$ProbeSender = "probe-sender@contoso.com",
     [string]$ProbeRecipient = "probe-recipient@contoso.com",
     [string]$SubjectPrefix = "XO-HealthCheck",
-    [string]$ProbeMarkerPath = ".\exchange-probe-marker.json",
     [int]$LookbackMinutes = 30,
-    [string]$OutputPath = ".\exchange-probe-latency.json"
+    [datetime]$ExpectedSendUtc = [datetime]::MinValue,
+    [string]$DatadogApiKey = "<datadog-api-key>",
+    [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs"
 )
 
 Import-Module ExchangeOnlineManagement
+
+. "$PSScriptRoot\..\send-datadog-log.ps1"
 
 Connect-ExchangeOnline `
     -AppId $AppId `
@@ -33,24 +36,6 @@ Connect-ExchangeOnline `
 
 $end = Get-Date
 $start = $end.AddMinutes(-1 * $LookbackMinutes)
-
-$expectedSendUtc = $null
-$expectedCorrelationId = $null
-
-# The marker file is written by the step-0 script before the probe is sent.
-# This lets the customer measure latency without guessing the intended send time.
-if (Test-Path $ProbeMarkerPath) {
-    try {
-        $marker = Get-Content -Path $ProbeMarkerPath -Raw | ConvertFrom-Json
-        if ($marker.send_utc) {
-            $expectedSendUtc = [datetime]$marker.send_utc
-        }
-        $expectedCorrelationId = $marker.correlation_id
-    }
-    catch {
-        # If the marker is missing or corrupt, continue with trace lookup only.
-    }
-}
 
 # Search a narrow window for the probe path.
 # The subject prefix gives the customer a simple way to isolate approved synthetic traffic.
@@ -65,17 +50,19 @@ $traces = Get-MessageTraceV2 `
 $latest = $traces | Sort-Object Received -Descending | Select-Object -First 1
 
 if ($null -eq $latest) {
-    [pscustomobject]@{
+    $record = [pscustomobject]@{
+        record_type = "exchange_probe_latency"
         organization = $Organization
         probe_sender = $ProbeSender
         probe_recipient = $ProbeRecipient
         subject_prefix = $SubjectPrefix
-        expected_correlation_id = $expectedCorrelationId
         window_start_utc = $start.ToUniversalTime().ToString('o')
         window_end_utc = $end.ToUniversalTime().ToString('o')
         probe_found = $false
         delivery_latency_seconds = $null
-    } | ConvertTo-Json -Depth 4 | Set-Content -Path $OutputPath
+    }
+
+    Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($record)
 
     Write-Host "No probe trace found in the window. This is the alert condition to investigate."
     Disconnect-ExchangeOnline -Confirm:$false
@@ -84,16 +71,16 @@ if ($null -eq $latest) {
 
 $receivedUtc = [datetime]$latest.Received
 $latencySeconds = $null
-if ($expectedSendUtc -and $latest.Received) {
-    $latencySeconds = [math]::Round(($receivedUtc.ToUniversalTime() - $expectedSendUtc.ToUniversalTime()).TotalSeconds, 2)
+if ($ExpectedSendUtc -ne [datetime]::MinValue -and $latest.Received) {
+    $latencySeconds = [math]::Round(($receivedUtc.ToUniversalTime() - $ExpectedSendUtc.ToUniversalTime()).TotalSeconds, 2)
 }
 
-[pscustomobject]@{
+$record = [pscustomobject]@{
+    record_type = "exchange_probe_latency"
     organization = $Organization
     probe_sender = $ProbeSender
     probe_recipient = $ProbeRecipient
     subject_prefix = $SubjectPrefix
-    expected_correlation_id = $expectedCorrelationId
     window_start_utc = $start.ToUniversalTime().ToString('o')
     window_end_utc = $end.ToUniversalTime().ToString('o')
     probe_found = $true
@@ -104,7 +91,9 @@ if ($expectedSendUtc -and $latest.Received) {
     message_id = $latest.MessageId
     received_utc = ([datetime]$latest.Received).ToUniversalTime().ToString('o')
     delivery_latency_seconds = $latencySeconds
-} | ConvertTo-Json -Depth 4 | Set-Content -Path $OutputPath
+}
+
+Send-DatadogLog -DatadogApiKey $DatadogApiKey -DatadogLogEndpoint $DatadogLogEndpoint -Records @($record)
 
 # Surface a concise result for a dashboard or runbook.
 [pscustomobject]@{
@@ -112,6 +101,7 @@ if ($expectedSendUtc -and $latest.Received) {
     status = $latest.Status
     received_utc = ([datetime]$latest.Received).ToUniversalTime().ToString('o')
     delivery_latency_seconds = $latencySeconds
+    datadog = $DatadogLogEndpoint
 } | Format-List
 
 Disconnect-ExchangeOnline -Confirm:$false
