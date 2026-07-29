@@ -136,6 +136,13 @@ What `probe-marker-template.ps1` sends to Datadog:
 - A probe marker event with the intended send time and correlation id.
 - The marker is a Datadog event, not a local file.
 
+Why probe markers exist:
+
+- They give the synthetic probe a unique identity so Datadog can tie the send event to the later mail-flow result.
+- They provide a clear start time for latency measurement.
+- They make it easy to alert when the expected probe never appears or takes too long.
+- They keep synthetic testing separate from normal production mail traffic.
+
 What `pilot-trace-rollup.ps1` sends to Datadog:
 
 - A trace rollup with counts by status and common sender and recipient domains.
