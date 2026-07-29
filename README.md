@@ -15,4 +15,6 @@ The examples are split into these areas:
 - Microsoft 365 and Exchange reports
 - Exchange mail flow, trace sampling, and synthetic probe checks
 
-The scripts are examples only and should be adapted to the tenant, permissions model, and Datadog setup being used. Some of the examples currently write local JSON first so the customer can review scale and content, but the intended end state is to forward the useful output into Datadog.
+The scripts are examples only and should be adapted to the tenant, permissions model, and Datadog setup being used. The intended end state is to forward the useful output into Datadog.
+
+Deployment guidance for the examples is in the folder README. In short, these are meant to run as scheduled jobs or timer-driven jobs in a managed runtime, not as one-off local scripts.

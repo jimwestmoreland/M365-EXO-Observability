@@ -16,6 +16,31 @@ Every script in this folder sends its useful output to Datadog.
 - `reports/m365-usage-reports.ps1` and `reports/exchange-reports.ps1` send report summaries to Datadog.
 - `exchange-mailflow/probe-marker-template.ps1`, `pilot-trace-rollup.ps1`, `trace-failure-sampler.ps1`, and `probe-latency-check.ps1` also publish events to Datadog so the customer can validate and troubleshoot mail flow directly in Datadog.
 
+## Deployment Model
+
+These examples are designed to run as scheduled or timer-driven jobs in a managed environment. The scripts are not meant to be run once by hand from a laptop and left there.
+
+Good deployment options include:
+
+- Azure Automation runbooks.
+- Azure Functions timer-triggered jobs.
+- Scheduled tasks on a hardened server or VM.
+- Container jobs or other managed batch runners.
+
+Suggested cadence by script type:
+
+- Service health: every 15 to 60 minutes.
+- Entra sign-in and directory audit: every 15 to 60 minutes, depending on volume.
+- Usage and Exchange reports: daily or weekly.
+- Mail flow rollups, failure sampling, and probe checks: every few minutes to every 15 minutes, depending on the signal and tenant size.
+
+General operational guidance:
+
+- Run the scripts in a managed identity or app-only auth context wherever possible.
+- Keep the Datadog API key in the deployment environment, not in the script body.
+- Treat Datadog as the system of record for dashboards, alerts, and troubleshooting.
+- Use the script outputs as scheduled telemetry jobs, not as ad hoc local utilities.
+
 ## How To Read This Folder
 
 Start with the folder-level topics below, then open the script inside that topic that matches the question you want to answer.
