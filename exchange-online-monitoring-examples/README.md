@@ -2,6 +2,8 @@
 
 This folder contains example scripts for a large Microsoft 365 tenant. Every script is intended to publish its useful output to Datadog so the customer can visualize, query, and alert on the signals in one place.
 
+The current scripts do not keep local JSON, checkpoint, or marker files. They publish directly to Datadog.
+
 The scripts are grouped by topic so the customer can understand each data source separately and adopt only the parts they actually need.
 
 ## Datadog At A Glance
@@ -12,7 +14,7 @@ Every script in this folder sends its useful output to Datadog.
 - `service-health/service-health.ps1` sends Microsoft 365 service health summaries to Datadog.
 - `entra-activity/sign-in-activity.ps1` and `entra-activity/directory-audit-activity.ps1` send Entra activity summaries to Datadog.
 - `reports/m365-usage-reports.ps1` and `reports/exchange-reports.ps1` send report summaries to Datadog.
-- `exchange-mailflow/probe-marker-template.ps1`, `pilot-trace-rollup.ps1`, `trace-failure-sampler.ps1`, and `probe-latency-check.ps1` also publish events to Datadog so the customer can validate and troubleshoot mail flow without keeping local files.
+- `exchange-mailflow/probe-marker-template.ps1`, `pilot-trace-rollup.ps1`, `trace-failure-sampler.ps1`, and `probe-latency-check.ps1` also publish events to Datadog so the customer can validate and troubleshoot mail flow directly in Datadog.
 
 ## How To Read This Folder
 
@@ -93,7 +95,7 @@ Files:
 What `m365-usage-reports.ps1` sends to Datadog:
 
 - A usage-report summary that can be graphed or queried in Datadog.
-- A preview of the report output for dashboarding or alerting.
+- A report event for dashboarding or alerting.
 
 How to use it:
 
@@ -104,7 +106,7 @@ How to use it:
 What `exchange-reports.ps1` sends to Datadog:
 
 - An Exchange report summary that can be graphed or queried in Datadog.
-- A preview of the report result for dashboarding or alerting.
+- A report event for dashboarding or alerting.
 
 How to use it:
 
