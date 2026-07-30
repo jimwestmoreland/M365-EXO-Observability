@@ -86,6 +86,13 @@ When to use it:
 - You want a simple status signal for leadership or the service desk.
 - You want to alert on active incidents without dealing with a lot of data.
 
+Required permissions and endpoints:
+
+- Microsoft Graph app permission: `ServiceHealth.Read.All`.
+- Entra app registration with a certificate for app-only auth.
+- Outbound HTTPS (port 443) to `https://graph.microsoft.com`.
+- Outbound HTTPS (port 443) to the Datadog logs intake endpoint.
+
 Default limits:
 
 - No record cap. Pulls all current issues on each run.
@@ -110,6 +117,13 @@ What `sign-in-activity.ps1` sends to Datadog:
 - A compact sign-in activity record for the selected time window.
 - The sign-in details needed for investigation, dashboards, and alerts.
 
+Required permissions and endpoints:
+
+- Microsoft Graph app permission: `AuditLog.Read.All`.
+- Entra app registration with a certificate for app-only auth.
+- Outbound HTTPS (port 443) to `https://graph.microsoft.com`.
+- Outbound HTTPS (port 443) to the Datadog logs intake endpoint.
+
 Default limits:
 
 - Lookback window: 60 minutes.
@@ -125,6 +139,13 @@ What `directory-audit-activity.ps1` sends to Datadog:
 
 - A compact directory audit record for the selected time window.
 - The audit details needed for investigation, dashboards, and alerts.
+
+Required permissions and endpoints:
+
+- Microsoft Graph app permission: `AuditLog.Read.All`.
+- Entra app registration with a certificate for app-only auth.
+- Outbound HTTPS (port 443) to `https://graph.microsoft.com`.
+- Outbound HTTPS (port 443) to the Datadog logs intake endpoint.
 
 Default limits:
 
@@ -151,6 +172,13 @@ What `m365-usage-reports.ps1` sends to Datadog:
 - A usage-report summary that can be graphed or queried in Datadog.
 - A report event for dashboarding or alerting.
 
+Required permissions and endpoints:
+
+- Microsoft Graph app permission: `Reports.Read.All`.
+- Entra app registration with a certificate for app-only auth.
+- Outbound HTTPS (port 443) to `https://graph.microsoft.com`.
+- Outbound HTTPS (port 443) to the Datadog logs intake endpoint.
+
 Default limits:
 
 - Report period: last 7 days (D7).
@@ -165,6 +193,13 @@ What `exchange-reports.ps1` sends to Datadog:
 
 - An Exchange report summary that can be graphed or queried in Datadog.
 - A report event for dashboarding or alerting.
+
+Required permissions and endpoints:
+
+- Microsoft Graph app permission: `Reports.Read.All`.
+- Entra app registration with a certificate for app-only auth.
+- Outbound HTTPS (port 443) to `https://graph.microsoft.com`.
+- Outbound HTTPS (port 443) to the Datadog logs intake endpoint.
 
 Default limits:
 
@@ -181,6 +216,15 @@ How to use it:
 This folder contains the Exchange Online mail-flow examples. These are the most operationally sensitive scripts in the set because message trace can become large very quickly in a big tenant.
 
 The mail-flow scripts split into two independent groups: diagnostic scripts that observe production traffic, and probe scripts that test mail flow using a synthetic message.
+
+Required permissions and endpoints for all mail-flow scripts:
+
+- Exchange Online app-only auth: Entra app registration with a certificate and the `Exchange.ManageAsApp` API permission.
+- The Entra service principal must be assigned the `Global Reader` or `Exchange Administrator` role, or the `View-Only Audit Logs` role group in Exchange Online.
+- Outbound HTTPS (port 443) to `https://outlook.office365.com` (Exchange Online PowerShell remote endpoint).
+- Outbound HTTPS (port 443) to `https://graph.microsoft.com` (probe-send.ps1 only).
+- Outbound HTTPS (port 443) to the Datadog logs intake endpoint.
+- `probe-send.ps1` additionally requires the `Mail.Send` Microsoft Graph app permission on the probe sender account.
 
 #### Diagnostic scripts
 
