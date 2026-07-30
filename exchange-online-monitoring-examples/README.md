@@ -180,89 +180,43 @@ How to use it:
 
 This folder contains the Exchange Online mail-flow examples. These are the most operationally sensitive scripts in the set because message trace can become large very quickly in a big tenant.
 
-Files:
+The mail-flow scripts split into two independent groups: diagnostic scripts that observe production traffic, and probe scripts that test mail flow using a synthetic message.
 
-- `mailflow-datadog-collector.ps1` - the broader Exchange Online trace collector that sends results to Datadog logs.
-- `probe-marker-template.ps1` - sends a probe marker event to Datadog.
-- `probe-send.ps1` - sends the actual synthetic probe email via Microsoft Graph.
-- `pilot-trace-rollup.ps1` - pulls a narrow trace window and publishes a summary event to Datadog.
-- `trace-failure-sampler.ps1` - captures only failures, deferred messages, and a small sample of trace details, then sends them to Datadog.
-- `probe-latency-check.ps1` - checks whether the approved synthetic probe was seen and publishes the result to Datadog.
+#### Diagnostic scripts
 
-Default limits for `mailflow-datadog-collector.ps1`:
+These run on a schedule and observe real production message trace data. They do not interact with the probe scripts.
 
-- Lookback window: 15 minutes.
-- Max traces per run: 500.
+| Script | Purpose | Default limits |
+| --- | --- | --- |
+| `mailflow-datadog-collector.ps1` | Pulls all trace records and enriches failures | 15-min window, 500 traces |
+| `pilot-trace-rollup.ps1` | Summarises trace volume by status and domain | 10-min window, 2000 traces |
+| `trace-failure-sampler.ps1` | Captures only failures and deferred messages | 15-min window, 100 failures |
 
-Note on increasing ResultSize: The script calls `Get-MessageTraceDetailV2` once per failed, pending, or deferred message on top of the initial trace pull. Increasing ResultSize significantly on a busy tenant can mean hundreds of additional API round trips, throttling risk, and execution times that exceed the limits of Azure Automation or Azure Functions. Validate run time and throttling behavior before increasing.
+How they relate: use `pilot-trace-rollup.ps1` first to understand volume, then `trace-failure-sampler.ps1` to see what the failures look like, then `mailflow-datadog-collector.ps1` when you need full trace detail. All three publish separate Datadog log events and can run in parallel on different schedules.
 
-What `mailflow-datadog-collector.ps1` sends to Datadog:
+`mailflow-datadog-collector.ps1` note: it calls `Get-MessageTraceDetailV2` once per failed, pending, or deferred message. Increasing `ResultSize` significantly on a busy tenant can cause throttling and exceed Azure Automation or Azure Functions execution time limits. Validate before increasing.
 
-- Raw Exchange Online message trace logs and detail records.
-- Failed, pending, and deferred trace enrichment for dashboards and alerts.
+#### Probe scripts
 
-What `probe-marker-template.ps1` sends to Datadog:
+These run together in sequence to test whether mail can flow end to end and measure how long it takes. They use a synthetic message that is distinct from production traffic.
 
-- A probe marker event with the intended send time and correlation id.
-- The marker is a Datadog event, not a local file.
+| Script | Purpose | What it sends to Datadog |
+| --- | --- | --- |
+| `probe-marker-template.ps1` | Records intent before the probe is sent | `probe_marker` event with `correlation_id` and `subject_token` |
+| `probe-send.ps1` | Sends the actual synthetic email via Microsoft Graph | `probe_send` event confirming the send |
+| `probe-latency-check.ps1` | Checks message trace for the probe and measures latency | `exchange_probe_latency` event with delivery result |
 
-Why probe markers exist:
-
-- They give the synthetic probe a unique identity so Datadog can tie the send event to the later mail-flow result.
-- They provide a clear start time for latency measurement.
-- They make it easy to alert when the expected probe never appears or takes too long.
-- They keep synthetic testing separate from normal production mail traffic.
-
-How `probe-marker-template.ps1` and `probe-latency-check.ps1` work together:
-
-These two scripts are paired. `probe-marker-template.ps1` runs first and publishes a Datadog event that records the intended send time and a unique `correlation_id`. `probe-latency-check.ps1` runs after the probe message is sent and publishes a second Datadog event with the trace result and latency.
-
-Both events land in Datadog with the same `subject_prefix` field. To link them in Datadog, create a correlation or join on `subject_prefix` or use the `correlation_id` from the marker event to search for the matching latency result. Neither script needs to change for this to work. The pairing is done in Datadog using the shared fields already present in both events.
+Why probe markers exist: without a marker event, Datadog cannot know a test message was intentional, when it was meant to be sent, or how long delivery took. The `correlation_id` in the marker is the common field that links all three events in Datadog.
 
 Full end-to-end probe workflow:
 
-1. Run `probe-marker-template.ps1` - publishes a `probe_marker` event to Datadog and prints the `subject_token`.
-2. Run `probe-send.ps1` passing the `subject_token` from step 1 - sends the actual probe email via Microsoft Graph and publishes a `probe_send` confirmation event to Datadog.
-3. Wait for Exchange Online message trace to reflect the message, typically a few minutes.
-4. Run `probe-latency-check.ps1` - queries message trace for the probe and publishes an `exchange_probe_latency` event to Datadog.
-5. In Datadog, correlate all three events on `subject_prefix` or `subject_token` to see intent, send confirmation, and result in one view.
+1. Run `probe-marker-template.ps1` - Datadog receives a `probe_marker` event; the console prints the `subject_token`.
+2. Run `probe-send.ps1` with that `subject_token` - sends the probe email via Microsoft Graph; Datadog receives a `probe_send` confirmation.
+3. Wait a few minutes for Exchange Online message trace to reflect the message.
+4. Run `probe-latency-check.ps1` - queries message trace for the probe subject; Datadog receives an `exchange_probe_latency` event.
+5. In Datadog, join all three events on `subject_prefix` or `subject_token` to see intent, send confirmation, and delivery result together.
 
 Required permission for `probe-send.ps1`: `Mail.Send` on the probe sender account.
-
-Default limits for `pilot-trace-rollup.ps1`:
-
-- Lookback window: 10 minutes.
-- Max traces per run: 2000.
-
-What `pilot-trace-rollup.ps1` sends to Datadog:
-
-- A trace rollup with counts by status and common sender and recipient domains.
-- A summary event that shows the scale of the trace window.
-
-Default limits for `trace-failure-sampler.ps1`:
-
-- Lookback window: 15 minutes.
-- Max failure records per run: 100.
-
-What `trace-failure-sampler.ps1` sends to Datadog:
-
-- A limited sample of failed, deferred, or pending traces.
-- Enriched troubleshooting records that can back dashboards and alerts.
-
-Default limits for `probe-latency-check.ps1`:
-
-- Lookback window: 30 minutes.
-
-What `probe-latency-check.ps1` sends to Datadog:
-
-- A probe-latency record showing whether the probe was found and what the latency was.
-- An event that can back a Datadog alert or dashboard tile.
-
-How to use the mail-flow scripts:
-
-- Keep time windows short at first.
-- Prefer the rollup or failure sampler before using the broader collector.
-- Use Datadog to store the results instead of local files.
 
 ## Deduplication
 
