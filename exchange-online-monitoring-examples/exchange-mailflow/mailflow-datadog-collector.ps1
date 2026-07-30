@@ -40,7 +40,9 @@ param(
     # EU:  https://http-intake.logs.datadoghq.eu/api/v2/logs
     [string]$DatadogLogEndpoint = "https://http-intake.logs.datadoghq.com/api/v2/logs",
 
-    [int]$LookbackMinutes = 15
+    [int]$LookbackMinutes = 15,
+    # Lower this first on large tenants; detail enrichment adds one API call per failed/deferred message.
+    [int]$ResultSize = 500
 )
 
 Import-Module ExchangeOnlineManagement
@@ -59,7 +61,7 @@ $start = $end.AddMinutes(-1 * $LookbackMinutes)
 $traces = Get-MessageTraceV2 `
     -StartDate $start `
     -EndDate $end `
-    -ResultSize 5000
+    -ResultSize $ResultSize
 
 $events = foreach ($trace in $traces) {
     $details = $null

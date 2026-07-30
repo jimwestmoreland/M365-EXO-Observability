@@ -59,7 +59,7 @@ Start with the folder-level topics below, then open the script inside that topic
 | `entra-activity/directory-audit-activity.ps1` | What changed in Entra and who changed it? | Directory audit summary | 60-min window, 200 records |
 | `reports/m365-usage-reports.ps1` | What are the current Microsoft 365 usage trends? | Usage report summary | Last 7 days (D7) |
 | `reports/exchange-reports.ps1` | What are the Exchange reporting trends? | Exchange report summary | Last 7 days (D7) |
-| `exchange-mailflow/mailflow-datadog-collector.ps1` | Are message traces failing, pending, or deferred? | Raw mail-flow trace logs | 15-min window, 5000 traces |
+| `exchange-mailflow/mailflow-datadog-collector.ps1` | Are message traces failing, pending, or deferred? | Raw mail-flow trace logs | 15-min window, 500 traces |
 | `exchange-mailflow/probe-marker-template.ps1` | Did we intentionally send a synthetic probe? | Probe marker event | Single event per run |
 | `exchange-mailflow/pilot-trace-rollup.ps1` | How much mail-flow activity is there at a glance? | Trace rollup summary | 10-min window, 2000 traces |
 | `exchange-mailflow/trace-failure-sampler.ps1` | What do the important failure traces look like? | Failure sample records | 15-min window, 100 failures |
@@ -191,7 +191,9 @@ Files:
 Default limits for `mailflow-datadog-collector.ps1`:
 
 - Lookback window: 15 minutes.
-- Max traces per run: 5000.
+- Max traces per run: 500 (reduced from 5000).
+
+Note on ResultSize: The original default of 5000 can cause long run times on large tenants because the script calls `Get-MessageTraceDetailV2` once per failed, pending, or deferred message on top of the initial trace pull. On a busy tenant, 5000 traces with many failures could mean hundreds of additional API round trips, throttling risk, and execution times that exceed the limits of Azure Automation or Azure Functions. Start at 500 and increase only after validating run time and throttling behavior.
 
 What `mailflow-datadog-collector.ps1` sends to Datadog:
 
