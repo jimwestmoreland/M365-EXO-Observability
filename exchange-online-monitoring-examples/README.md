@@ -212,6 +212,12 @@ Why probe markers exist:
 - They make it easy to alert when the expected probe never appears or takes too long.
 - They keep synthetic testing separate from normal production mail traffic.
 
+How `probe-marker-template.ps1` and `probe-latency-check.ps1` work together:
+
+These two scripts are paired. `probe-marker-template.ps1` runs first and publishes a Datadog event that records the intended send time and a unique `correlation_id`. `probe-latency-check.ps1` runs after the probe message is sent and publishes a second Datadog event with the trace result and latency.
+
+Both events land in Datadog with the same `subject_prefix` field. To link them in Datadog, create a correlation or join on `subject_prefix` or use the `correlation_id` from the marker event to search for the matching latency result. Neither script needs to change for this to work. The pairing is done in Datadog using the shared fields already present in both events.
+
 Default limits for `pilot-trace-rollup.ps1`:
 
 - Lookback window: 10 minutes.
