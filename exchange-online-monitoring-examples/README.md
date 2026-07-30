@@ -245,6 +245,42 @@ How to use the mail-flow scripts:
 - Prefer the rollup or failure sampler before using the broader collector.
 - Use Datadog to store the results instead of local files.
 
+## Deduplication
+
+The time-windowed scripts do not contain built-in deduplication logic. If a scheduled run overlaps with the lookback window of a previous run, the overlapping records will be sent to Datadog again.
+
+**Which scripts are at risk:**
+
+- `mailflow-datadog-collector.ps1` - 15-min lookback, duplicates if runs overlap.
+- `trace-failure-sampler.ps1` - 15-min lookback, duplicates if runs overlap.
+- `pilot-trace-rollup.ps1` - 10-min lookback, duplicates if runs overlap.
+- `sign-in-activity.ps1` - 60-min lookback, higher overlap risk.
+- `directory-audit-activity.ps1` - 60-min lookback, higher overlap risk.
+- `probe-latency-check.ps1` - 30-min lookback, lower risk since it targets one probe result.
+
+**Which scripts are naturally safe:**
+
+- `service-health.ps1` - always reflects the current state, not a windowed stream. Re-runs send the same snapshot.
+- `m365-usage-reports.ps1` and `exchange-reports.ps1` - pull a D7 aggregate summary. Re-runs send the same rollup, not multiplied raw records.
+- `probe-marker-template.ps1` - generates a new correlation id on every run, so it only duplicates if run twice by mistake.
+
+**How to handle deduplication:**
+
+Option 1 - Use Datadog log rehydration or pipeline rules to deduplicate on a unique field. Each script includes a natural key that Datadog can use:
+
+- Mail-flow scripts: `message_trace_id`
+- Entra sign-in: `correlation_id`
+- Directory audit: `correlation_id`
+- Probe scripts: `correlation_id`
+
+Option 2 - Align the schedule precisely so the run interval matches the lookback window and runs do not overlap. For example, if `LookbackMinutes` is 15, schedule the job every 15 minutes on the exact minute.
+
+Option 3 - Shorten the lookback window slightly below the run interval to leave a small gap. For example, use a 13-minute lookback on a 15-minute schedule. This accepts a small blind spot but eliminates overlap.
+
+Option 4 - Work with Datadog to configure a log index pipeline that drops duplicate events based on the unique field for each record type.
+
+For a large tenant, option 1 or option 4 is recommended because it keeps the scripts simple and pushes deduplication to the platform where it is easier to manage and audit.
+
 ## Scale Guidance
 
 These scripts are designed for a large tenant, so the safest pattern is to start small and only widen the scope after the customer confirms the volume is acceptable.
