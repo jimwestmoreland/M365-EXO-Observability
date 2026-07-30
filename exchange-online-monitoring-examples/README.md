@@ -184,6 +184,7 @@ Files:
 
 - `mailflow-datadog-collector.ps1` - the broader Exchange Online trace collector that sends results to Datadog logs.
 - `probe-marker-template.ps1` - sends a probe marker event to Datadog.
+- `probe-send.ps1` - sends the actual synthetic probe email via Microsoft Graph.
 - `pilot-trace-rollup.ps1` - pulls a narrow trace window and publishes a summary event to Datadog.
 - `trace-failure-sampler.ps1` - captures only failures, deferred messages, and a small sample of trace details, then sends them to Datadog.
 - `probe-latency-check.ps1` - checks whether the approved synthetic probe was seen and publishes the result to Datadog.
@@ -217,6 +218,16 @@ How `probe-marker-template.ps1` and `probe-latency-check.ps1` work together:
 These two scripts are paired. `probe-marker-template.ps1` runs first and publishes a Datadog event that records the intended send time and a unique `correlation_id`. `probe-latency-check.ps1` runs after the probe message is sent and publishes a second Datadog event with the trace result and latency.
 
 Both events land in Datadog with the same `subject_prefix` field. To link them in Datadog, create a correlation or join on `subject_prefix` or use the `correlation_id` from the marker event to search for the matching latency result. Neither script needs to change for this to work. The pairing is done in Datadog using the shared fields already present in both events.
+
+Full end-to-end probe workflow:
+
+1. Run `probe-marker-template.ps1` - publishes a `probe_marker` event to Datadog and prints the `subject_token`.
+2. Run `probe-send.ps1` passing the `subject_token` from step 1 - sends the actual probe email via Microsoft Graph and publishes a `probe_send` confirmation event to Datadog.
+3. Wait for Exchange Online message trace to reflect the message, typically a few minutes.
+4. Run `probe-latency-check.ps1` - queries message trace for the probe and publishes an `exchange_probe_latency` event to Datadog.
+5. In Datadog, correlate all three events on `subject_prefix` or `subject_token` to see intent, send confirmation, and result in one view.
+
+Required permission for `probe-send.ps1`: `Mail.Send` on the probe sender account.
 
 Default limits for `pilot-trace-rollup.ps1`:
 
