@@ -52,18 +52,18 @@ Start with the folder-level topics below, then open the script inside that topic
 
 ## Script Map
 
-| Script | Use it when you need to answer... | Datadog signal |
-| --- | --- | --- |
-| `service-health/service-health.ps1` | Is Microsoft 365 currently degraded or having an advisory? | Service health summary |
-| `entra-activity/sign-in-activity.ps1` | Are sign-ins failing, risky, or trending in a bad direction? | Sign-in activity summary |
-| `entra-activity/directory-audit-activity.ps1` | What changed in Entra and who changed it? | Directory audit summary |
-| `reports/m365-usage-reports.ps1` | What are the current Microsoft 365 usage trends? | Usage report summary |
-| `reports/exchange-reports.ps1` | What are the Exchange reporting trends? | Exchange report summary |
-| `exchange-mailflow/mailflow-datadog-collector.ps1` | Are message traces failing, pending, or deferred? | Raw mail-flow trace logs |
-| `exchange-mailflow/probe-marker-template.ps1` | Did we intentionally send a synthetic probe? | Probe marker event |
-| `exchange-mailflow/pilot-trace-rollup.ps1` | How much mail-flow activity is there at a glance? | Trace rollup summary |
-| `exchange-mailflow/trace-failure-sampler.ps1` | What do the important failure traces look like? | Failure sample records |
-| `exchange-mailflow/probe-latency-check.ps1` | Did the synthetic probe arrive, and how long did it take? | Probe latency event |
+| Script | Use it when you need to answer... | Datadog signal | Default limits |
+| --- | --- | --- | --- |
+| `service-health/service-health.ps1` | Is Microsoft 365 currently degraded or having an advisory? | Service health summary | All current issues, no cap |
+| `entra-activity/sign-in-activity.ps1` | Are sign-ins failing, risky, or trending in a bad direction? | Sign-in activity summary | 60-min window, 200 records |
+| `entra-activity/directory-audit-activity.ps1` | What changed in Entra and who changed it? | Directory audit summary | 60-min window, 200 records |
+| `reports/m365-usage-reports.ps1` | What are the current Microsoft 365 usage trends? | Usage report summary | Last 7 days (D7) |
+| `reports/exchange-reports.ps1` | What are the Exchange reporting trends? | Exchange report summary | Last 7 days (D7) |
+| `exchange-mailflow/mailflow-datadog-collector.ps1` | Are message traces failing, pending, or deferred? | Raw mail-flow trace logs | 15-min window, 5000 traces |
+| `exchange-mailflow/probe-marker-template.ps1` | Did we intentionally send a synthetic probe? | Probe marker event | Single event per run |
+| `exchange-mailflow/pilot-trace-rollup.ps1` | How much mail-flow activity is there at a glance? | Trace rollup summary | 10-min window, 2000 traces |
+| `exchange-mailflow/trace-failure-sampler.ps1` | What do the important failure traces look like? | Failure sample records | 15-min window, 100 failures |
+| `exchange-mailflow/probe-latency-check.ps1` | Did the synthetic probe arrive, and how long did it take? | Probe latency event | 30-min lookback window |
 
 ## Folder Layout
 
@@ -86,6 +86,10 @@ When to use it:
 - You want a simple status signal for leadership or the service desk.
 - You want to alert on active incidents without dealing with a lot of data.
 
+Default limits:
+
+- No record cap. Pulls all current issues on each run.
+
 How to use it:
 
 - Fill in the tenant id, app client id, Datadog API key, and Datadog site if needed.
@@ -106,6 +110,11 @@ What `sign-in-activity.ps1` sends to Datadog:
 - A compact sign-in activity record for the selected time window.
 - The sign-in details needed for investigation, dashboards, and alerts.
 
+Default limits:
+
+- Lookback window: 60 minutes.
+- Max records per run: 200.
+
 How to use it:
 
 - Set the tenant id, app client id, Datadog API key, and Datadog site if needed.
@@ -116,6 +125,11 @@ What `directory-audit-activity.ps1` sends to Datadog:
 
 - A compact directory audit record for the selected time window.
 - The audit details needed for investigation, dashboards, and alerts.
+
+Default limits:
+
+- Lookback window: 60 minutes.
+- Max records per run: 200.
 
 How to use it:
 
@@ -137,6 +151,10 @@ What `m365-usage-reports.ps1` sends to Datadog:
 - A usage-report summary that can be graphed or queried in Datadog.
 - A report event for dashboarding or alerting.
 
+Default limits:
+
+- Report period: last 7 days (D7).
+
 How to use it:
 
 - Set the tenant id, app client id, Datadog API key, and Datadog site if needed.
@@ -147,6 +165,10 @@ What `exchange-reports.ps1` sends to Datadog:
 
 - An Exchange report summary that can be graphed or queried in Datadog.
 - A report event for dashboarding or alerting.
+
+Default limits:
+
+- Report period: last 7 days (D7).
 
 How to use it:
 
@@ -166,6 +188,11 @@ Files:
 - `trace-failure-sampler.ps1` - captures only failures, deferred messages, and a small sample of trace details, then sends them to Datadog.
 - `probe-latency-check.ps1` - checks whether the approved synthetic probe was seen and publishes the result to Datadog.
 
+Default limits for `mailflow-datadog-collector.ps1`:
+
+- Lookback window: 15 minutes.
+- Max traces per run: 5000.
+
 What `mailflow-datadog-collector.ps1` sends to Datadog:
 
 - Raw Exchange Online message trace logs and detail records.
@@ -183,15 +210,29 @@ Why probe markers exist:
 - They make it easy to alert when the expected probe never appears or takes too long.
 - They keep synthetic testing separate from normal production mail traffic.
 
+Default limits for `pilot-trace-rollup.ps1`:
+
+- Lookback window: 10 minutes.
+- Max traces per run: 2000.
+
 What `pilot-trace-rollup.ps1` sends to Datadog:
 
 - A trace rollup with counts by status and common sender and recipient domains.
 - A summary event that shows the scale of the trace window.
 
+Default limits for `trace-failure-sampler.ps1`:
+
+- Lookback window: 15 minutes.
+- Max failure records per run: 100.
+
 What `trace-failure-sampler.ps1` sends to Datadog:
 
 - A limited sample of failed, deferred, or pending traces.
 - Enriched troubleshooting records that can back dashboards and alerts.
+
+Default limits for `probe-latency-check.ps1`:
+
+- Lookback window: 30 minutes.
 
 What `probe-latency-check.ps1` sends to Datadog:
 
